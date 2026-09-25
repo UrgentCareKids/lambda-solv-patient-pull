@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  lambda-paylocity-api:
+    container_name: ${CONTAINER_NAME}
+    build:
+      dockerfile: Dockerfile
+      context: ./
+    ports:
+      - 9090:8080
+    env_file:
+      - .env/local
+    volumes:
+      - ./src:/var/task
+      - ./tests:/var/tests

@@ -1,0 +1,50 @@
+name: Dev Build
+
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build-push: 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Build Docker container
+        id: build-image
+        run: |
+          docker build -t $ECR_REGISTRY/gsh/lambda-solv-patient-pull:dev .
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+      # - name: Run tests
+      #   run: |
+      #     docker run --name test-lambda-redox --rm -d $ECR_REGISTRY/gsh/lambda-lambda-solv-patient-pull:dev
+      #     docker exec test-lambda-redox bash -c "cd /var && export PYTHONPATH="${PYTHONPATH}:/var/task" && pytest tests"
+      #   env:
+      #     ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+      - name: Push image to Amazon ECR
+        run: docker push $ECR_REGISTRY/gsh/lambda-solv-patient-pull:dev
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+      - name: Update AWS dev lambda to point to new image
+        run: |
+          image_sha=`docker images --digests | grep lambda-solv-patient-pull | grep dev | awk '{print $3}' | grep sha256`
+          echo "Pointing lambda to new sha: ${image_sha}"
+          aws lambda update-function-code --function-name lambda-solv-patient-pull \
+          --image-uri $ECR_REGISTRY/gsh/lambda-solv-patient-pull@${image_sha} 2>&1 > /dev/null
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
