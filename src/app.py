@@ -32,8 +32,9 @@ from datetime import datetime, timedelta, timezone
 from io import StringIO
 
 import boto3
-import psycopg2
 from psycopg2 import sql
+
+from db.easebase_conn import easebase_conn  # creds from SSM Parameter Store
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -150,17 +151,6 @@ REPORTS = {
 # ---------------------------------------------------------------------------
 # Database helpers
 # ---------------------------------------------------------------------------
-def get_db_connection():
-    creds = json.loads(os.environ["DB_CREDENTIALS"])
-    return psycopg2.connect(
-        dbname=creds["database"],
-        user=creds["user"],
-        password=creds["password"],
-        host=creds["host"],
-        port=creds["port"],
-        connect_timeout=10,
-    )
-
 
 def log_start(conn, phase, source, target):
     run_id = int(time.time())
@@ -408,7 +398,7 @@ def handler(event, context):
         targets = {n: r for n, r in REPORTS.items() if r["enabled"]}
 
     results = []
-    conn = get_db_connection()
+    conn = easebase_conn()
     try:
         # Only one loader at a time: runs share the staging table, so a backfill
         # and the daily cron must never overlap.

@@ -1,1 +1,2 @@
-psycopg2-binary
+boto3==1.28.57       # AWS SDK for Python (handles S3 interactions)
+psycopg2-binary==2.9.9  # PostgreSQL database adapter
